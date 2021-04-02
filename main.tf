@@ -1,7 +1,3 @@
-terraform {
-    required_version = ">= 0.12.0"
-}
-
 provider "aws" {
     region  = var.region
 }
@@ -19,19 +15,19 @@ data "aws_availability_zones" "available" {
 
 resource "aws_security_group" "worker_group_mgmt_one" {
     name_prefix = "worker_group_mgmt_one"
-    vpc_id = "module.vpc.vpc_id"
+    vpc_id = module.vpc.vpc_id
 
     ingress {
       cidr_blocks = [ "10.0.0.0/8" ]
       from_port = 22
-      to_port =22
+      to_port = 22
       protocol = "tcp"
     }
 }
 
 resource "aws_security_group" "all_worker_mgmt" {
     name_prefix = "all_worker_management"
-    vpc_id = "module.vpc.vpc_id"
+    vpc_id = module.vpc.vpc_id
 
     ingress {
       cidr_blocks = [ 
@@ -40,7 +36,7 @@ resource "aws_security_group" "all_worker_mgmt" {
           "192.168.0.0/16",
           ]
       from_port = 22
-      to_port =22
+      to_port = 22
       protocol = "tcp"
     }
 }
@@ -70,7 +66,6 @@ module "vpc" {
 
 module "eks" {
   source          = "terraform-aws-modules/eks/aws"
-  version         = "14.0.0" 
   cluster_name    = var.cluster_name
   cluster_version = "1.19"
   subnets         = module.vpc.private_subnets
@@ -91,6 +86,11 @@ module "eks" {
 
   worker_additional_security_group_ids = [aws_security_group.all_worker_mgmt.id]
 
+  workers_group_defaults = {
+  	root_volume_type = "gp2"
+  }
+
+
   map_roles = var.map_roles
   map_users = var.map_users
   map_accounts = var.map_accounts
@@ -105,11 +105,11 @@ provider "kubernetes" {
 }
 
 # Kubernetes example deployments
-resource "kubernetes_deployment" "pedro-app" {
+resource "kubernetes_deployment" "nginx" {
   metadata {
-    name = "pedro-app-1"
+    name = "pedroapp"
     labels = {
-      test = "pedro-app"
+      test = "pedroapp"
     }
   }
 
@@ -118,14 +118,14 @@ resource "kubernetes_deployment" "pedro-app" {
 
     selector {
       match_labels = {
-        test = "pedro-app"
+        test = "pedroapp"
       }
     }
 
     template {
       metadata {
         labels = {
-          test = "pedro-app"
+          test = "pedroapp"
         }
       }
 
@@ -150,13 +150,13 @@ resource "kubernetes_deployment" "pedro-app" {
   }
 }
 
-resource "kubernetes_service" "pedro-service" {
+resource "kubernetes_service" "pedrosvc" {
   metadata {
-    name = "pedro-service-1"
+    name = "pedroservice"
   }
   spec {
     selector = {
-      test = "pedro-app"
+      test = "pedroapp"
     }
     port {
       port        = 80
