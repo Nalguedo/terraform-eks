@@ -7,6 +7,12 @@ variable "cluster_name" {
     default     = "pedro_cluster"
 }
 
+variable "metrics_server_version" {
+  description = "The metrics-server version to use. See https://github.com/kubernetes-sigs/metrics-server/releases for available versions"
+  type        = string
+  default     = "0.4.2"
+}
+
 variable "map_accounts" {
   description = "Additional AWS account numbers to add to the aws-auth configmap."
   type        = list(string)

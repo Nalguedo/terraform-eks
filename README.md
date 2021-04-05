@@ -18,12 +18,17 @@ Apply Terraform config
 Load kubecfg from aws
 `aws eks update-kubeconfig --name pedro_cluster --region eu-west-2`
 
-If export is needed
-`export KUBECONFIG=/work/kubeconfig_pedro_cluster`
-
 Test kubectl
 `kubectl get nodes`
 `kubectl get svc`
 
 Delete everything
 `terraform destroy`
+
+Generate load
+`docker run --rm mwendler/wget /bin/sh -c "while sleep 0.01; do wget -q -O- http://awsurl; done"`
+
+server metrics fix
+ name      = "metrics-server:system:auth-delegator" 
+ this should be auth-reader not auth-delegator. Seems like Copy&Paste bug
+

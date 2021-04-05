@@ -1,3 +1,8 @@
+locals {
+  k8s_cluster_type = "eks"
+}
+
+
 provider "aws" {
     region  = var.region
 }
@@ -14,31 +19,50 @@ data "aws_availability_zones" "available" {
 }
 
 resource "aws_security_group" "worker_group_mgmt_one" {
-    name_prefix = "worker_group_mgmt_one"
-    vpc_id = module.vpc.vpc_id
+  name_prefix = "worker_group_mgmt_one"
+  vpc_id      = module.vpc.vpc_id
 
-    ingress {
-      cidr_blocks = [ "10.0.0.0/8" ]
-      from_port = 22
-      to_port = 22
-      protocol = "tcp"
-    }
+  ingress {
+    from_port = 22
+    to_port   = 22
+    protocol  = "tcp"
+
+    cidr_blocks = [
+      "10.0.0.0/8",
+    ]
+  }
+}
+
+resource "aws_security_group" "worker_group_mgmt_two" {
+  name_prefix = "worker_group_mgmt_two"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    from_port = 22
+    to_port   = 22
+    protocol  = "tcp"
+
+    cidr_blocks = [
+      "192.168.0.0/16",
+    ]
+  }
 }
 
 resource "aws_security_group" "all_worker_mgmt" {
-    name_prefix = "all_worker_management"
-    vpc_id = module.vpc.vpc_id
+  name_prefix = "all_worker_management"
+  vpc_id      = module.vpc.vpc_id
 
-    ingress {
-      cidr_blocks = [ 
-          "10.0.0.0/8",
-          "172.16.0.0/12",
-          "192.168.0.0/16",
-          ]
-      from_port = 22
-      to_port = 22
-      protocol = "tcp"
-    }
+  ingress {
+    from_port = 22
+    to_port   = 22
+    protocol  = "tcp"
+
+    cidr_blocks = [
+      "10.0.0.0/8",
+      "172.16.0.0/12",
+      "192.168.0.0/16",
+    ]
+  }
 }
 
 module "vpc" {
@@ -75,13 +99,20 @@ module "eks" {
   cluster_endpoint_private_access = true
 
   worker_groups = [
-      {
-          name = "worker-group-1"
-          instance_type = "t2.small"
-          additional_userdata = "Pedro"
-          asg_desired_capacity = 1
-          additional_security_group_ids = [aws_security_group.worker_group_mgmt_one.id]
-      },
+    {
+      name                          = "worker-group-1"
+      instance_type                 = "t3.small"
+      additional_userdata           = "echo foo bar"
+      asg_desired_capacity          = 2
+      additional_security_group_ids = [aws_security_group.worker_group_mgmt_one.id]
+    },
+    {
+      name                          = "worker-group-2"
+      instance_type                 = "t3.medium"
+      additional_userdata           = "echo foo bar"
+      additional_security_group_ids = [aws_security_group.worker_group_mgmt_two.id]
+      asg_desired_capacity          = 1
+    },
   ]
 
   worker_additional_security_group_ids = [aws_security_group.all_worker_mgmt.id]
@@ -104,35 +135,49 @@ provider "kubernetes" {
   token                  = data.aws_eks_cluster_auth.cluster.token
 }
 
+module "metrics_server" {
+  source  = "iplabs/metrics-server/kubernetes"
+  version = "1.0.0"
+}
+
 # Kubernetes example deployments
-resource "kubernetes_deployment" "nginx" {
+resource "kubernetes_deployment" "apache" {
   metadata {
-    name = "pedroapp"
+    name = "php-apache"
     labels = {
-      test = "pedroapp"
+      test = "php-apache"
     }
   }
 
+  lifecycle {
+    ignore_changes = [
+      # Number of replicas is controlled by
+      # kubernetes_horizontal_pod_autoscaler, ignore the setting in this
+      # deployment template.
+      spec[0].replicas,
+    ]
+  }
+
   spec {
-    replicas = 2
+    replicas = 1
 
     selector {
       match_labels = {
-        test = "pedroapp"
+        test = "php-apache"
       }
     }
 
     template {
       metadata {
         labels = {
-          test = "pedroapp"
+          test = "php-apache"
         }
       }
 
       spec {
         container {
-          image = "nginx:1.7.8"
-          name  = "nginx"
+          image = "k8s.gcr.io/hpa-example"
+          name  = "apache"
 
           resources {
             limits = {
@@ -150,13 +195,13 @@ resource "kubernetes_deployment" "nginx" {
   }
 }
 
-resource "kubernetes_service" "pedrosvc" {
+resource "kubernetes_service" "apachesvc" {
   metadata {
-    name = "pedroservice"
+    name = "apachesvc"
   }
   spec {
     selector = {
-      test = "pedroapp"
+      test = "php-apache"
     }
     port {
       port        = 80
@@ -164,5 +209,25 @@ resource "kubernetes_service" "pedrosvc" {
     }
 
     type = "LoadBalancer"
+  }
+}
+
+resource "kubernetes_horizontal_pod_autoscaler" "apache" {
+  metadata {
+    name = "php-apache"
+  }
+
+  spec {
+
+    min_replicas = 1
+    max_replicas = 10
+
+    scale_target_ref {
+      api_version = "apps/v1"
+      kind = "Deployment"
+      name = "php-apache"
+    }
+
+    target_cpu_utilization_percentage = 60
   }
 }
