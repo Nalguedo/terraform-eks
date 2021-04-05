@@ -53,8 +53,8 @@ RUN git clone https://github.com/hashicorp/terraform.git ./ && \
 
 WORKDIR /work
 
-ENV AWS_ACCESS_KEY_ID=AKIA6ELM2RDIAX4M5KR5
-ENV AWS_SECRET_ACCESS_KEY=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
+ENV AWS_ACCESS_KEY_ID=somekey
+ENV AWS_SECRET_ACCESS_KEY=somekey
 ENV AWS_DEFAULT_REGION=eu-west-2
 ENV AWS_DEFAULT_OUTPUT=json
 #ENTRYPOINT ["terraform"]
