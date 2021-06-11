@@ -228,6 +228,6 @@ resource "kubernetes_horizontal_pod_autoscaler" "apache" {
       name = "php-apache"
     }
 
-    target_cpu_utilization_percentage = 60
+    target_cpu_utilization_percentage = 50
   }
 }
