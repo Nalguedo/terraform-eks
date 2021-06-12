@@ -1,7 +1,13 @@
-# terraform-eks
+# Deploy Kubernetes cluster and web app using terraform on AWS
+## Horizontal pod autoscaler also configured
+
 Terraform eks setup and k8s deployments
 
 *Steps*
+
+Build container with all software needed (AWS CLI, Terraform, kubectl)
+
+`docker build -t terraform:v1 .`
 
 Start container
 
@@ -23,7 +29,7 @@ Apply Terraform config
 
 Load kubecfg from aws
 
-`aws eks update-kubeconfig --name pedro_cluster --region eu-west-2`
+`aws eks update-kubeconfig --name <cluster_name> --region eu-west-2`
 
 Test kubectl
 
@@ -31,15 +37,10 @@ Test kubectl
 
 `kubectl get svc`
 
-Delete everything
-
-`terraform destroy`
-
 Generate load
 
 `docker run --rm jgoclawski/wget:latest /bin/sh -c "while sleep 0.01; do wget -q -O- http://awsurl; done"`
 
-server metrics fix
- name      = "metrics-server:system:auth-delegator" 
- this should be auth-reader not auth-delegator. Seems like Copy&Paste bug
+Delete everything
 
+`terraform destroy`
